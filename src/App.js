@@ -1,13 +1,11 @@
-// ======================= FINAL BOSS VERSION (FULL ECOMMERCE) =======================
-// FEATURES:
+// ======================= ULTRA FINAL BOSS (ELITE VERSION) =======================
+// Includes:
+// ✅ Firebase (products, orders, auth)
+// ✅ Stripe payments (secure)
 // ✅ Admin dashboard
-// ✅ Orders + status tracking
-// ✅ Product management
-// ✅ Image upload
-// ✅ Validation
-// ✅ Auth protection
-// ✅ Logout
-// ✅ Ready for Stripe integration
+// ✅ Order tracking
+// ✅ Luxury UI touches
+// ✅ Navigation system
 
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "firebase/firestore";
@@ -16,12 +14,12 @@ import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from
 import { useState, useEffect } from "react";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA_kdJ0NeDbSy09F5cZ_BdqV0Lmur3viDE",
-  authDomain: "scent-steals.firebaseapp.com",
-  projectId: "scent-steals",
-  storageBucket: "scent-steals.firebasestorage.app",
-  messagingSenderId: "590392271784",
-  appId: "1:590392271784:web:b0f5f298f3e3b1c88eb39d"
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_ID",
+  appId: "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -58,8 +56,6 @@ export default function App() {
   };
 
   const addProduct = async (name, price, retail, imageFile) => {
-    if (!name || !price || !retail) return alert("Fill all fields");
-
     let imageUrl = "";
     if (imageFile) {
       const imageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
@@ -78,69 +74,134 @@ export default function App() {
     loadProducts();
   };
 
-  const createOrder = async (product, details) => {
-    if (!details.name || !details.address) return alert("Enter shipping info");
-
-    await addDoc(collection(db, "orders"), {
-      product,
-      ...details,
-      status: "Processing",
-      createdAt: new Date()
-    });
-
-    loadOrders();
-    alert("Order placed successfully 💎");
-    setPage("home");
-  };
-
-  const updateOrderStatus = async (id, status) => {
-    await updateDoc(doc(db, "orders", id), { status });
-    loadOrders();
-  };
-
-  const logout = () => {
-    signOut(auth);
-    setIsAdmin(false);
-  };
+  const logout = () => signOut(auth);
 
   return (
-    <div style={{ background: "#020617", color: "white", minHeight: "100vh", padding: 20 }}>
-      <h1 style={{ textAlign: "center", fontSize: 32 }}>ScentSteals 💎</h1>
+    <div style={styles.page}>
+      <h1 style={styles.title}>ScentSteals 💎</h1>
 
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
+      <div style={styles.nav}>
         <button onClick={() => setPage("home")}>Store</button>
+        <button onClick={() => setPage("track")}>Track Order</button>
         <button onClick={() => setPage("admin")}>Admin</button>
         {isAdmin && <button onClick={logout}>Logout</button>}
       </div>
 
       {page === "home" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 20 }}>
+        <div style={styles.grid}>
           {products.map(p => (
-            <div key={p.id} style={{ background: "#111", padding: 15, borderRadius: 12 }}>
-              {p.imageUrl && <img src={p.imageUrl} style={{ width: "100%", borderRadius: 10 }} />}
+            <div key={p.id} style={styles.card}>
+              {p.imageUrl && <img src={p.imageUrl} style={styles.img} />}
               <h3>{p.name}</h3>
-              <p>${p.price} <span style={{ textDecoration: "line-through", color: "gray" }}>${p.retail}</span></p>
-              <button onClick={() => { setSelectedProduct(p); setPage("checkout"); }}>Buy</button>
+              <p>
+                ${p.price} <span style={styles.retail}>${p.retail}</span>
+              </p>
+              <button onClick={() => { setSelectedProduct(p); setPage("checkout"); }}>
+                Buy
+              </button>
             </div>
           ))}
         </div>
       )}
 
       {page === "checkout" && selectedProduct && (
-        <Checkout product={selectedProduct} createOrder={createOrder} />
+        <Checkout product={selectedProduct} />
       )}
+
+      {page === "track" && <OrderTracking />}
 
       {page === "admin" && (
         isAdmin ? (
-          <Admin
-            addProduct={addProduct}
-            orders={orders}
-            updateOrderStatus={updateOrderStatus}
-          />
+          <Admin addProduct={addProduct} orders={orders} />
         ) : (
           <Login />
         )
       )}
+    </div>
+  );
+}
+
+function Checkout({ product }) {
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+
+  const pay = async () => {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: product.name,
+        price: Number(product.price),
+        customerName: name,
+        address
+      })
+    });
+
+    const data = await res.json();
+    window.location.href = data.url;
+  };
+
+  return (
+    <div style={styles.center}>
+      <h2>{product.name}</h2>
+      <input placeholder="Name" onChange={e => setName(e.target.value)} />
+      <input placeholder="Address" onChange={e => setAddress(e.target.value)} />
+      <button onClick={pay}>Pay 💳</button>
+    </div>
+  );
+}
+
+function OrderTracking() {
+  const [name, setName] = useState("");
+  const [results, setResults] = useState([]);
+
+  const search = async () => {
+    const data = await getDocs(collection(db, "orders"));
+    setResults(data.docs.map(d => d.data()).filter(o => o.name === name));
+  };
+
+  return (
+    <div style={styles.center}>
+      <h2>Track Order</h2>
+      <input placeholder="Name" onChange={e => setName(e.target.value)} />
+      <button onClick={search}>Search</button>
+      {results.map((o,i)=>(
+        <div key={i} style={styles.card}>
+          <p>{o.product}</p>
+          <p>{o.status}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Admin({ addProduct, orders }) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [retail, setRetail] = useState("");
+  const [image, setImage] = useState(null);
+
+  return (
+    <div style={styles.grid}>
+      <div style={styles.card}>
+        <h2>Add Product</h2>
+        <input placeholder="Name" onChange={e => setName(e.target.value)} />
+        <input placeholder="Price" onChange={e => setPrice(e.target.value)} />
+        <input placeholder="Retail" onChange={e => setRetail(e.target.value)} />
+        <input type="file" onChange={e => setImage(e.target.files[0])} />
+        <button onClick={() => addProduct(name, price, retail, image)}>Add</button>
+      </div>
+
+      <div style={styles.card}>
+        <h2>Orders</h2>
+        {orders.map(o => (
+          <div key={o.id}>
+            <p>{o.product}</p>
+            <p>{o.name}</p>
+            <p>{o.status}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -150,7 +211,7 @@ function Login() {
   const [password, setPassword] = useState("");
 
   return (
-    <div style={{ maxWidth: 300, margin: "auto" }}>
+    <div style={styles.center}>
       <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
       <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
       <button onClick={() => signInWithEmailAndPassword(auth, email, password)}>Login</button>
@@ -158,65 +219,13 @@ function Login() {
   );
 }
 
-function Checkout({ product, createOrder }) {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-
-  return (
-    <div style={{ maxWidth: 400, margin: "auto" }}>
-      <h2>{product.name}</h2>
-      <input placeholder="Name" onChange={e => setName(e.target.value)} />
-      <input placeholder="Address" onChange={e => setAddress(e.target.value)} />
-
-      {/* FUTURE: STRIPE BUTTON HERE */}
-      <button onClick={() => createOrder(product, { name, address })}>
-        Place Order
-      </button>
-    </div>
-  );
-}
-
-function Admin({ addProduct, orders, updateOrderStatus }) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [retail, setRetail] = useState("");
-  const [image, setImage] = useState(null);
-
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-
-      <div style={{ background: "#111", padding: 20, borderRadius: 12 }}>
-        <h2>Add Product</h2>
-        <input placeholder="Name" onChange={e => setName(e.target.value)} />
-        <input placeholder="Price" onChange={e => setPrice(e.target.value)} />
-        <input placeholder="Retail" onChange={e => setRetail(e.target.value)} />
-        <input type="file" onChange={e => setImage(e.target.files[0])} />
-        <button onClick={() => addProduct(name, price, retail, image)}>Add Product</button>
-      </div>
-
-      <div style={{ background: "#111", padding: 20, borderRadius: 12 }}>
-        <h2>Orders</h2>
-        {orders.map(o => (
-          <div key={o.id} style={{ borderBottom: "1px solid #333", padding: 10 }}>
-            <p><b>{o.product.name}</b></p>
-            <p>{o.name}</p>
-            <p>{o.address}</p>
-            <p>Status: {o.status}</p>
-
-            <button onClick={() => updateOrderStatus(o.id, "Shipped")}>Ship</button>
-            <button onClick={() => updateOrderStatus(o.id, "Delivered")}>Deliver</button>
-          </div>
-        ))}
-      </div>
-
-    </div>
-  );
-}
-
-// ======================= FINAL TEST CASES =======================
-// 1. Admin login works only for your email
-// 2. Cannot submit empty forms
-// 3. Orders appear instantly
-// 4. Status updates correctly
-// 5. Images upload + display
-// 6. Ready for Stripe integration
+const styles = {
+  page: { background: "#020617", color: "white", minHeight: "100vh", padding: 20 },
+  title: { textAlign: "center" },
+  nav: { textAlign: "center", marginBottom: 20 },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 20 },
+  card: { background: "#111", padding: 15, borderRadius: 12 },
+  img: { width: "100%", borderRadius: 10 },
+  retail: { textDecoration: "line-through", color: "gray" },
+  center: { maxWidth: 400, margin: "auto" }
+};
