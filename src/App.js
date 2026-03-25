@@ -1,14 +1,7 @@
-// ======================= ULTRA FINAL BOSS (ELITE VERSION) =======================
-// Includes:
-// ✅ Firebase (products, orders, auth)
-// ✅ Stripe payments (secure)
-// ✅ Admin dashboard
-// ✅ Order tracking
-// ✅ Luxury UI touches
-// ✅ Navigation system
+// ======================= ULTRA FINAL BOSS (FIXED + LUXURY UI) =======================
 
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { useState, useEffect } from "react";
@@ -31,14 +24,12 @@ const ADMIN_EMAIL = "j82205357@gmail.com";
 
 export default function App() {
   const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
   const [page, setPage] = useState("home");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadProducts();
-    loadOrders();
 
     onAuthStateChanged(auth, (user) => {
       setIsAdmin(user && user.email === ADMIN_EMAIL);
@@ -48,11 +39,6 @@ export default function App() {
   const loadProducts = async () => {
     const data = await getDocs(collection(db, "products"));
     setProducts(data.docs.map(d => ({ ...d.data(), id: d.id })));
-  };
-
-  const loadOrders = async () => {
-    const data = await getDocs(collection(db, "orders"));
-    setOrders(data.docs.map(d => ({ ...d.data(), id: d.id })));
   };
 
   const addProduct = async (name, price, retail, imageFile) => {
@@ -67,28 +53,36 @@ export default function App() {
       name,
       price,
       retail,
-      imageUrl,
-      createdAt: new Date()
+      imageUrl
     });
 
     loadProducts();
   };
 
-  const logout = () => signOut(auth);
-
   return (
     <div style={styles.page}>
-      <h1 style={styles.title}>ScentSteals 💎</h1>
+      {/* HERO SECTION */}
+      <div style={styles.hero}>
+        <h1 style={styles.title}>ScentSteals 💎</h1>
+        <p style={styles.subtitle}>Luxury fragrances for less</p>
 
-      <div style={styles.nav}>
-        <button onClick={() => setPage("home")}>Store</button>
-        <button onClick={() => setPage("track")}>Track Order</button>
-        <button onClick={() => setPage("admin")}>Admin</button>
-        {isAdmin && <button onClick={logout}>Logout</button>}
+        <div style={styles.nav}>
+          <button style={styles.navBtn} onClick={() => setPage("home")}>Store</button>
+          <button style={styles.navBtn} onClick={() => setPage("admin")}>Admin</button>
+          {isAdmin && <button style={styles.navBtn} onClick={() => signOut(auth)}>Logout</button>}
+        </div>
       </div>
 
+      {/* STORE */}
       {page === "home" && (
         <div style={styles.grid}>
+          {products.length === 0 && (
+            <div style={styles.empty}>
+              <h2>No products yet 💀</h2>
+              <p>Go to Admin → Add your first product</p>
+            </div>
+          )}
+
           {products.map(p => (
             <div key={p.id} style={styles.card}>
               {p.imageUrl && <img src={p.imageUrl} style={styles.img} />}
@@ -96,23 +90,26 @@ export default function App() {
               <p>
                 ${p.price} <span style={styles.retail}>${p.retail}</span>
               </p>
-              <button onClick={() => { setSelectedProduct(p); setPage("checkout"); }}>
-                Buy
+              <button style={styles.buyBtn} onClick={() => { setSelectedProduct(p); setPage("checkout"); }}>
+                Buy Now
               </button>
             </div>
           ))}
         </div>
       )}
 
+      {/* CHECKOUT */}
       {page === "checkout" && selectedProduct && (
-        <Checkout product={selectedProduct} />
+        <div style={styles.center}>
+          <h2>{selectedProduct.name}</h2>
+          <button style={styles.buyBtn}>Stripe Checkout Coming 💳</button>
+        </div>
       )}
 
-      {page === "track" && <OrderTracking />}
-
+      {/* ADMIN */}
       {page === "admin" && (
         isAdmin ? (
-          <Admin addProduct={addProduct} orders={orders} />
+          <Admin addProduct={addProduct} />
         ) : (
           <Login />
         )
@@ -121,86 +118,21 @@ export default function App() {
   );
 }
 
-function Checkout({ product }) {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-
-  const pay = async () => {
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: product.name,
-        price: Number(product.price),
-        customerName: name,
-        address
-      })
-    });
-
-    const data = await res.json();
-    window.location.href = data.url;
-  };
-
-  return (
-    <div style={styles.center}>
-      <h2>{product.name}</h2>
-      <input placeholder="Name" onChange={e => setName(e.target.value)} />
-      <input placeholder="Address" onChange={e => setAddress(e.target.value)} />
-      <button onClick={pay}>Pay 💳</button>
-    </div>
-  );
-}
-
-function OrderTracking() {
-  const [name, setName] = useState("");
-  const [results, setResults] = useState([]);
-
-  const search = async () => {
-    const data = await getDocs(collection(db, "orders"));
-    setResults(data.docs.map(d => d.data()).filter(o => o.name === name));
-  };
-
-  return (
-    <div style={styles.center}>
-      <h2>Track Order</h2>
-      <input placeholder="Name" onChange={e => setName(e.target.value)} />
-      <button onClick={search}>Search</button>
-      {results.map((o,i)=>(
-        <div key={i} style={styles.card}>
-          <p>{o.product}</p>
-          <p>{o.status}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Admin({ addProduct, orders }) {
+function Admin({ addProduct }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [retail, setRetail] = useState("");
   const [image, setImage] = useState(null);
 
   return (
-    <div style={styles.grid}>
+    <div style={styles.center}>
       <div style={styles.card}>
         <h2>Add Product</h2>
         <input placeholder="Name" onChange={e => setName(e.target.value)} />
         <input placeholder="Price" onChange={e => setPrice(e.target.value)} />
         <input placeholder="Retail" onChange={e => setRetail(e.target.value)} />
         <input type="file" onChange={e => setImage(e.target.files[0])} />
-        <button onClick={() => addProduct(name, price, retail, image)}>Add</button>
-      </div>
-
-      <div style={styles.card}>
-        <h2>Orders</h2>
-        {orders.map(o => (
-          <div key={o.id}>
-            <p>{o.product}</p>
-            <p>{o.name}</p>
-            <p>{o.status}</p>
-          </div>
-        ))}
+        <button style={styles.buyBtn} onClick={() => addProduct(name, price, retail, image)}>Add Product</button>
       </div>
     </div>
   );
@@ -212,20 +144,79 @@ function Login() {
 
   return (
     <div style={styles.center}>
-      <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-      <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-      <button onClick={() => signInWithEmailAndPassword(auth, email, password)}>Login</button>
+      <div style={styles.card}>
+        <h2>Admin Login</h2>
+        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
+        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
+        <button style={styles.buyBtn} onClick={() => signInWithEmailAndPassword(auth, email, password)}>
+          Login
+        </button>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  page: { background: "#020617", color: "white", minHeight: "100vh", padding: 20 },
-  title: { textAlign: "center" },
-  nav: { textAlign: "center", marginBottom: 20 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 20 },
-  card: { background: "#111", padding: 15, borderRadius: 12 },
-  img: { width: "100%", borderRadius: 10 },
+  page: { background: "#020617", color: "white", minHeight: "100vh" },
+
+  hero: {
+    textAlign: "center",
+    padding: "60px 20px",
+    borderBottom: "1px solid #222"
+  },
+
+  title: { fontSize: "42px", fontWeight: "bold" },
+  subtitle: { color: "#aaa", marginBottom: 20 },
+
+  nav: { display: "flex", justifyContent: "center", gap: 10 },
+  navBtn: {
+    padding: "8px 16px",
+    background: "#111",
+    color: "white",
+    border: "1px solid #333",
+    borderRadius: 8,
+    cursor: "pointer"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
+    gap: 20,
+    padding: 20
+  },
+
+  card: {
+    background: "#111",
+    padding: 20,
+    borderRadius: 16,
+    boxShadow: "0 0 20px rgba(255,255,255,0.05)"
+  },
+
+  img: { width: "100%", borderRadius: 12, marginBottom: 10 },
+
   retail: { textDecoration: "line-through", color: "gray" },
-  center: { maxWidth: 400, margin: "auto" }
+
+  buyBtn: {
+    marginTop: 10,
+    padding: "10px",
+    width: "100%",
+    background: "linear-gradient(90deg,#06b6d4,#3b82f6)",
+    border: "none",
+    borderRadius: 10,
+    color: "white",
+    cursor: "pointer"
+  },
+
+  center: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: "60vh"
+  },
+
+  empty: {
+    textAlign: "center",
+    gridColumn: "1/-1",
+    color: "#888"
+  }
 };
