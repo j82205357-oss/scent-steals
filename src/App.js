@@ -227,17 +227,6 @@ function Login() {
       </div>
     </div>
   );
-}>
-      <div style={styles.card}>
-        <h2>Admin Login</h2>
-        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-        <button style={styles.btn} onClick={() => signInWithEmailAndPassword(auth, email, password)}>
-          Login
-        </button>
-      </div>
-    </div>
-  );
 }
 
 const styles = {
