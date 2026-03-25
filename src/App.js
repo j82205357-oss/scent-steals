@@ -7,12 +7,12 @@ import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from
 import { useState, useEffect } from "react";
 
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyA_kdJ0NeDbSy09F5cZ_BdqV0Lmur3viDE",
+  authDomain: "scent-steals.firebaseapp.com",
+  projectId: "scent-steals",
+  storageBucket: "scent-steals.firebasestorage.app",
+  messagingSenderId: "590392271784",
+  appId: "1:590392271784:web:b0f5f298f3e3b1c88eb39d"
 };
 
 const app = initializeApp(firebaseConfig);
