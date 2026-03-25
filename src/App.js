@@ -1,4 +1,4 @@
-// ======================= ULTRA FINAL BOSS (FIXED + LUXURY UI) =======================
+// ======================= ULTRA FINAL BOSS (LUXURY MAX UPGRADE) =======================
 
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore";
@@ -61,58 +61,68 @@ export default function App() {
 
   return (
     <div style={styles.page}>
-      {/* HERO SECTION */}
-      <div style={styles.hero}>
-        <h1 style={styles.title}>ScentSteals 💎</h1>
-        <p style={styles.subtitle}>Luxury fragrances for less</p>
 
-        <div style={styles.nav}>
-          <button style={styles.navBtn} onClick={() => setPage("home")}>Store</button>
-          <button style={styles.navBtn} onClick={() => setPage("admin")}>Admin</button>
-          {isAdmin && <button style={styles.navBtn} onClick={() => signOut(auth)}>Logout</button>}
+      {/* STICKY NAV */}
+      <div style={styles.navbar}>
+        <h2 style={styles.logo}>ScentSteals</h2>
+        <div style={styles.navLinks}>
+          <span onClick={() => setPage("home")} style={styles.link}>Store</span>
+          <span onClick={() => setPage("admin")} style={styles.link}>Admin</span>
+          {isAdmin && <span onClick={() => signOut(auth)} style={styles.link}>Logout</span>}
         </div>
       </div>
+
+      {/* HERO */}
+      {page === "home" && (
+        <div style={styles.hero}>
+          <h1 style={styles.title}>Luxury Fragrance</h1>
+          <p style={styles.subtitle}>Minimal. Elegant. Timeless.</p>
+        </div>
+      )}
 
       {/* STORE */}
       {page === "home" && (
         <div style={styles.grid}>
-          {products.length === 0 && (
-            <div style={styles.empty}>
-              <h2>No products yet 💀</h2>
-              <p>Go to Admin → Add your first product</p>
-            </div>
-          )}
-
           {products.map(p => (
-            <div key={p.id} style={styles.card}>
+            <div
+              key={p.id}
+              style={styles.card}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.03)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            >
               {p.imageUrl && <img src={p.imageUrl} style={styles.img} />}
               <h3>{p.name}</h3>
-              <p>
-                ${p.price} <span style={styles.retail}>${p.retail}</span>
-              </p>
-              <button style={styles.buyBtn} onClick={() => { setSelectedProduct(p); setPage("checkout"); }}>
-                Buy Now
+              <p>${p.price} <span style={styles.retail}>${p.retail}</span></p>
+              <button style={styles.btn} onClick={() => { setSelectedProduct(p); setPage("product"); }}>
+                View Product
               </button>
             </div>
           ))}
         </div>
       )}
 
+      {/* PRODUCT PAGE */}
+      {page === "product" && selectedProduct && (
+        <div style={styles.productPage}>
+          <img src={selectedProduct.imageUrl} style={styles.productImg} />
+          <div>
+            <h2>{selectedProduct.name}</h2>
+            <p style={styles.price}>${selectedProduct.price}</p>
+            <button style={styles.btn} onClick={() => setPage("checkout")}>Buy Now</button>
+          </div>
+        </div>
+      )}
+
       {/* CHECKOUT */}
-      {page === "checkout" && selectedProduct && (
+      {page === "checkout" && (
         <div style={styles.center}>
-          <h2>{selectedProduct.name}</h2>
-          <button style={styles.buyBtn}>Stripe Checkout Coming 💳</button>
+          <button style={styles.btn}>Stripe Checkout 💳</button>
         </div>
       )}
 
       {/* ADMIN */}
       {page === "admin" && (
-        isAdmin ? (
-          <Admin addProduct={addProduct} />
-        ) : (
-          <Login />
-        )
+        isAdmin ? <Admin addProduct={addProduct} /> : <Login />
       )}
     </div>
   );
@@ -132,7 +142,7 @@ function Admin({ addProduct }) {
         <input placeholder="Price" onChange={e => setPrice(e.target.value)} />
         <input placeholder="Retail" onChange={e => setRetail(e.target.value)} />
         <input type="file" onChange={e => setImage(e.target.files[0])} />
-        <button style={styles.buyBtn} onClick={() => addProduct(name, price, retail, image)}>Add Product</button>
+        <button style={styles.btn} onClick={() => addProduct(name, price, retail, image)}>Add</button>
       </div>
     </div>
   );
@@ -143,12 +153,86 @@ function Login() {
   const [password, setPassword] = useState("");
 
   return (
-    <div style={styles.center}>
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "70vh"
+    }}>
+      <div style={{
+        width: 380,
+        padding: 30,
+        borderRadius: 16,
+        background: "linear-gradient(145deg, #0f172a, #020617)",
+        boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+        border: "1px solid rgba(255,255,255,0.05)"
+      }}>
+        <h2 style={{
+          marginBottom: 20,
+          fontSize: 22,
+          letterSpacing: 1,
+          textAlign: "center",
+          color: "white"
+        }}>
+          Admin Login
+        </h2>
+
+        <input
+          placeholder="Email"
+          onChange={e => setEmail(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 12,
+            marginBottom: 12,
+            borderRadius: 8,
+            border: "1px solid #1e293b",
+            background: "#020617",
+            color: "white"
+          }}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          onChange={e => setPassword(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 12,
+            marginBottom: 16,
+            borderRadius: 8,
+            border: "1px solid #1e293b",
+            background: "#020617",
+            color: "white"
+          }}
+        />
+
+        <button
+          onClick={() => signInWithEmailAndPassword(auth, email, password)}
+          style={{
+            width: "100%",
+            padding: 12,
+            borderRadius: 10,
+            border: "none",
+            background: "linear-gradient(90deg, #06b6d4, #3b82f6)",
+            color: "white",
+            fontWeight: "bold",
+            cursor: "pointer",
+            transition: "0.3s"
+          }}
+          onMouseOver={e => e.target.style.opacity = 0.8}
+          onMouseOut={e => e.target.style.opacity = 1}
+        >
+          Login
+        </button>
+      </div>
+    </div>
+  );
+}>
       <div style={styles.card}>
         <h2>Admin Login</h2>
         <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
         <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-        <button style={styles.buyBtn} onClick={() => signInWithEmailAndPassword(auth, email, password)}>
+        <button style={styles.btn} onClick={() => signInWithEmailAndPassword(auth, email, password)}>
           Login
         </button>
       </div>
@@ -157,66 +241,77 @@ function Login() {
 }
 
 const styles = {
-  page: { background: "#020617", color: "white", minHeight: "100vh" },
+  page: { background: "#f8f6f2", minHeight: "100vh" },
+
+  navbar: {
+    position: "sticky",
+    top: 0,
+    background: "white",
+    padding: "15px 40px",
+    display: "flex",
+    justifyContent: "space-between",
+    borderBottom: "1px solid #eee",
+    zIndex: 1000
+  },
+
+  logo: { fontWeight: "300", letterSpacing: "2px" },
+
+  navLinks: { display: "flex", gap: 20 },
+
+  link: {
+    cursor: "pointer",
+    fontSize: "13px",
+    letterSpacing: "1px"
+  },
 
   hero: {
     textAlign: "center",
-    padding: "60px 20px",
-    borderBottom: "1px solid #222"
+    padding: "100px 20px"
   },
 
-  title: { fontSize: "42px", fontWeight: "bold" },
-  subtitle: { color: "#aaa", marginBottom: 20 },
+  title: { fontSize: "42px", fontWeight: "300" },
 
-  nav: { display: "flex", justifyContent: "center", gap: 10 },
-  navBtn: {
-    padding: "8px 16px",
-    background: "#111",
-    color: "white",
-    border: "1px solid #333",
-    borderRadius: 8,
-    cursor: "pointer"
-  },
+  subtitle: { color: "#777" },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-    gap: 20,
-    padding: 20
+    gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
+    gap: 40,
+    padding: 60
   },
 
   card: {
-    background: "#111",
-    padding: 20,
-    borderRadius: 16,
-    boxShadow: "0 0 20px rgba(255,255,255,0.05)"
+    textAlign: "center",
+    transition: "0.3s",
+    cursor: "pointer"
   },
 
-  img: { width: "100%", borderRadius: 12, marginBottom: 10 },
+  img: { width: "100%", height: 320, objectFit: "cover" },
 
   retail: { textDecoration: "line-through", color: "gray" },
 
-  buyBtn: {
+  btn: {
     marginTop: 10,
     padding: "10px",
-    width: "100%",
-    background: "linear-gradient(90deg,#06b6d4,#3b82f6)",
-    border: "none",
-    borderRadius: 10,
-    color: "white",
+    border: "1px solid black",
+    background: "transparent",
     cursor: "pointer"
   },
+
+  productPage: {
+    display: "flex",
+    gap: 60,
+    padding: 60
+  },
+
+  productImg: { width: "400px" },
+
+  price: { fontSize: "24px", margin: "10px 0" },
 
   center: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     minHeight: "60vh"
-  },
-
-  empty: {
-    textAlign: "center",
-    gridColumn: "1/-1",
-    color: "#888"
   }
 };
