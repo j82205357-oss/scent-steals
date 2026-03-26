@@ -1,8 +1,8 @@
-// ======================= INSANE V4 FIXED =======================
+// INSANE ADMIN V6 (WHITE, FULL MANAGEMENT) + CHECKOUT
 
 import React, { useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 
 const firebaseConfig = {
@@ -22,7 +22,6 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [page, setPage] = useState("home");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -36,261 +35,238 @@ export default function App() {
     setProducts(data.docs.map(d => ({ ...d.data(), id: d.id })));
   };
 
-  const addToCart = (product) => {
-    setCart(prev => [...prev, product]);
-    setCartOpen(true);
-  };
+  const addToCart = (p) => setCart(prev => [...prev, p]);
 
   const checkout = async (details) => {
-    if (!details.name || !details.address || !details.payment) {
-      return alert("Fill all checkout fields");
-    }
-
     await addDoc(collection(db, "orders"), {
       items: cart,
       ...details,
+      status: "Pending",
       createdAt: new Date()
     });
-
     setCart([]);
-    setCartOpen(false);
     alert("Order placed 💎");
+    setPage("home");
   };
 
   return (
     <div style={styles.page}>
 
-      {/* NAV */}
-      <div style={styles.navbar}>
+      <div style={styles.nav}>
         <h2>ScentSteals</h2>
         <div>
           <span onClick={() => setPage("home")} style={styles.link}>Store</span>
-          <span onClick={() => setCartOpen(true)} style={styles.link}>Cart ({cart.length})</span>
+          <span onClick={() => setPage("cart")} style={styles.link}>Cart ({cart.length})</span>
           <span onClick={() => setPage("admin")} style={styles.link}>Admin</span>
           {isAdmin && <span onClick={() => signOut(auth)} style={styles.link}>Logout</span>}
         </div>
       </div>
 
-      {/* STORE */}
       {page === "home" && (
-        <>
-          <div style={styles.hero}><h1>Luxury Redefined</h1></div>
-
-          {/* WHY CHOOSE US */}
-          <div style={styles.whySection}>
-            <h2 style={styles.whyTitle}>Why Choose Us</h2>
-            <div style={styles.divider}></div>
-
-            <div style={styles.whyGrid}>
-              <div style={styles.whyCard}>
-                <h3>Premium Quality</h3>
-                <p>Curated fragrances with long-lasting performance.</p>
-              </div>
-              <div style={styles.whyCard}>
-                <h3>Fair Pricing</h3>
-                <p>Luxury scents without insane markups.</p>
-              </div>
-              <div style={styles.whyCard}>
-                <h3>Customer First</h3>
-                <p>Fast service and smooth checkout.</p>
-              </div>
+        <div style={styles.grid}>
+          {products.map(p => (
+            <div key={p.id} style={styles.card}>
+              {p.image && <img src={p.image} alt="" style={styles.img} />}
+              <h3>{p.name}</h3>
+              <p>${p.price}</p>
+              <button style={styles.btn} onClick={() => addToCart(p)}>Add to Cart</button>
             </div>
-          </div>
-
-          <div style={styles.grid}>
-            {products.map(p => (
-              <div key={p.id} style={styles.card}>
-                <div style={styles.productImage}>
-                  {p.image && <img src={p.image} style={styles.img} />}
-                </div>
-
-                <h3>{p.name}</h3>
-                <p>${p.price}</p>
-
-                <button style={styles.btn} onClick={() => addToCart(p)}>Add to Cart</button>
-              </div>
-            ))}
-          </div>
-        </>
+          ))}
+        </div>
       )}
 
-      {page === "admin" && (isAdmin ? <Admin loadProducts={loadProducts} products={products} /> : <Login />)}
+      {page === "cart" && <Cart cart={cart} checkout={checkout} />}
 
-      {cartOpen && <Checkout checkout={checkout} close={() => setCartOpen(false)} />}
+      {page === "admin" && (isAdmin ? <Admin /> : <Login />)}
 
     </div>
   );
 }
 
-// ================= CHECKOUT =================
-function Checkout({ checkout, close }) {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [payment, setPayment] = useState("");
+// CHECKOUT
+function Cart({ cart, checkout }) {
+  const [form, setForm] = useState({ name:"", email:"", address:"", payment:"" });
+  const total = cart.reduce((s,i)=>s+i.price,0);
 
   return (
-    <div style={styles.cartDrawer}>
-      <h3>Checkout</h3>
-      <input placeholder="Name" onChange={e => setName(e.target.value)} />
-      <input placeholder="Address" onChange={e => setAddress(e.target.value)} />
-      <input placeholder="Payment" onChange={e => setPayment(e.target.value)} />
-      <button onClick={() => checkout({ name, address, payment })}>Pay</button>
-      <button onClick={close}>Close</button>
+    <div style={styles.checkoutWrap}>
+      <div style={styles.checkoutGrid}>
+
+        <div>
+          <input style={styles.inputLight} placeholder="Name" onChange={e=>setForm({...form,name:e.target.value})}/>
+          <input style={styles.inputLight} placeholder="Email" onChange={e=>setForm({...form,email:e.target.value})}/>
+          <input style={styles.inputLight} placeholder="Address" onChange={e=>setForm({...form,address:e.target.value})}/>
+        </div>
+
+        <div style={styles.orderSummary}>
+          {cart.map((i,idx)=>(
+            <div key={idx} style={styles.summaryItem}><span>{i.name}</span><span>${i.price}</span></div>
+          ))}
+          <div style={styles.total}>${total}</div>
+          <button style={styles.placeOrderLight} onClick={()=>checkout(form)}>Place Order</button>
+        </div>
+
+      </div>
     </div>
   );
 }
 
-// ================= ADMIN =================
-function Admin({ loadProducts, products }) {
-  const [tab, setTab] = useState("products");
+// 🔥 ADMIN V6
+function Admin() {
   const [orders, setOrders] = useState([]);
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [image, setImage] = useState("");
+  const [products, setProducts] = useState([]);
+  const [tab, setTab] = useState("orders");
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  const [name,setName]=useState("");
+  const [price,setPrice]=useState("");
+  const [image,setImage]=useState("");
 
-  const loadOrders = async () => {
-    const data = await getDocs(collection(db, "orders"));
-    setOrders(data.docs.map(d => ({ ...d.data(), id: d.id })));
+  useEffect(()=>{load();},[]);
+
+  const load = async () => {
+    const o = await getDocs(collection(db,"orders"));
+    const p = await getDocs(collection(db,"products"));
+
+    const ordersArr = o.docs.map(d=>({...d.data(),id:d.id}));
+    ordersArr.sort((a,b)=> new Date(b.createdAt?.seconds ? b.createdAt.seconds*1000 : b.createdAt) - new Date(a.createdAt?.seconds ? a.createdAt.seconds*1000 : a.createdAt));
+
+    setOrders(ordersArr);
+    setProducts(p.docs.map(d=>({...d.data(),id:d.id})));
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
+  const addProduct = async () => {
+    await addDoc(collection(db,"products"),{ name, price:Number(price), image });
+    setName(""); setPrice(""); setImage("");
+    load();
+  };
+
+  const deleteProduct = async (id) => {
+    await deleteDoc(doc(db,"products",id));
+    load();
+  };
+
+  const updateStatus = async (id, status) => {
+    await updateDoc(doc(db,"orders",id), { status });
+    load();
+  };
+
+  const handleImage = (file) => {
     const reader = new FileReader();
     reader.onload = () => setImage(reader.result);
     reader.readAsDataURL(file);
   };
 
-  const addProduct = async () => {
-    if (!name || !price) return alert("Fill all fields");
-    await addDoc(collection(db, "products"), { name, price: Number(price), image });
-    setName("");
-    setPrice("");
-    setImage("");
-    loadProducts();
-  };
-
-  const deleteProduct = async (id) => {
-    await deleteDoc(doc(db, "products", id));
-    loadProducts();
-  };
-
   return (
-    <div style={styles.adminWrapper}>
-      <h2 style={styles.adminTitle}>Admin Dashboard 🔥</h2>
+    <div style={styles.adminWhite}>
 
-      {/* TABS */}
-      <div style={styles.adminTabs}>
-        <button onClick={() => setTab("products")} style={tab === "products" ? styles.activeTab : styles.tab}>Products</button>
-        <button onClick={() => setTab("orders")} style={tab === "orders" ? styles.activeTab : styles.tab}>Orders</button>
+      <h1>Admin Panel</h1>
+
+      <div style={styles.tabsWhite}>
+        <button onClick={()=>setTab("orders")} style={tab==="orders"?styles.activeWhite:styles.tabWhite}>Orders</button>
+        <button onClick={()=>setTab("products")} style={tab==="products"?styles.activeWhite:styles.tabWhite}>Products</button>
       </div>
 
-      {/* PRODUCTS TAB */}
-      {tab === "products" && (
-        <div style={styles.adminSection}>
-          <h3>Add Product</h3>
-
-          <input placeholder="Product Name" value={name} onChange={e => setName(e.target.value)} style={styles.input} />
-          <input placeholder="Price" value={price} onChange={e => setPrice(e.target.value)} style={styles.input} />
-
-          <div style={styles.dropZone} onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
-            Drag & Drop Image
-          </div>
-
-          <button style={styles.primaryBtn} onClick={addProduct}>Add Product</button>
-
-          <h3 style={{ marginTop: 40 }}>Your Products</h3>
-          {products.map(p => (
-            <div key={p.id} style={styles.adminItem}>
-              <span>{p.name} - ${p.price}</span>
-              <button onClick={() => deleteProduct(p.id)}>Delete</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ORDERS TAB */}
+      {/* ORDERS */}
       {tab === "orders" && (
-        <div style={styles.adminSection}>
-          <h3>Orders</h3>
-          {orders.length === 0 && <p>No orders yet</p>}
+        <div>
+          {orders.map(o => (
+            <div key={o.id} style={styles.orderCard}>
+              <b>{o.name}</b> — ${o.items?.reduce((s,i)=>s+i.price,0)}
+              <div>{o.address}</div>
+              <div>Status: {o.status}</div>
 
-          {orders.map(order => (
-            <div key={order.id} style={styles.orderCard}>
-              <strong>{order.name}</strong>
-              <p>{order.address}</p>
-              <p>Payment: {order.payment}</p>
+              <select onChange={(e)=>updateStatus(o.id,e.target.value)} value={o.status}>
+                <option>Pending</option>
+                <option>Shipped</option>
+                <option>Delivered</option>
+              </select>
 
-              {order.items?.map((item, i) => (
-                <div key={i}>{item.name} - ${item.price}</div>
+              {o.items?.map((i,idx)=> (
+                <div key={idx}>• {i.name}</div>
               ))}
             </div>
           ))}
         </div>
       )}
+
+      {/* PRODUCTS */}
+      {tab === "products" && (
+        <div>
+
+          <div style={styles.addBox}>
+            <input placeholder="Name" value={name} onChange={e=>setName(e.target.value)} style={styles.inputLight}/>
+            <input placeholder="Price" value={price} onChange={e=>setPrice(e.target.value)} style={styles.inputLight}/>
+
+            <div style={styles.dropZone} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();handleImage(e.dataTransfer.files[0]);}}>
+              Drag Image
+            </div>
+
+            <input type="file" onChange={e=>handleImage(e.target.files[0])} />
+
+            {image && <img src={image} style={styles.preview} />}
+
+            <button onClick={addProduct}>Add Product</button>
+          </div>
+
+          {products.map(p=> (
+            <div key={p.id} style={styles.productRow}>
+              {p.image && <img src={p.image} style={styles.thumb} />}
+              <span>{p.name}</span>
+              <span>${p.price}</span>
+              <button onClick={()=>deleteProduct(p.id)}>Delete</button>
+            </div>
+          ))}
+
+        </div>
+      )}
+
     </div>
   );
-};
+}
 
-// ================= STYLES =================
+function Login() {
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  return (
+    <div style={styles.center}>
+      <input onChange={e=>setEmail(e.target.value)} />
+      <input type="password" onChange={e=>setPassword(e.target.value)} />
+      <button onClick={()=>signInWithEmailAndPassword(auth,email,password)}>Login</button>
+    </div>
+  );
+}
+
 const styles = {
-  page: { fontFamily: "Arial", background: "#fff", minHeight: "100vh" },
-  navbar: { display: "flex", justifyContent: "space-between", padding: 20, borderBottom: "1px solid #eee" },
-  link: { marginLeft: 20, cursor: "pointer" },
+  page:{background:"#fff",minHeight:"100vh"},
+  nav:{display:"flex",justifyContent:"space-between",padding:20},
+  link:{marginLeft:20,cursor:"pointer"},
 
-  hero: { padding: 80, textAlign: "center", fontSize: 28 },
+  grid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:40,padding:40},
+  card:{border:"1px solid #eee",padding:20},
+  img:{width:"100%",aspectRatio:"1 / 1",objectFit:"cover"},
+  btn:{padding:10,width:"100%"},
 
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: 60,
-    padding: "60px 120px",
-    alignItems: "start"
-  },
-  card: {
-    textAlign: "center",
-    transition: "all 0.4s ease",
-    cursor: "pointer",
-    maxWidth: 260,
-    margin: "0 auto"
-  },
-  productImage: {
-    width: "100%",
-    aspectRatio: "1/1",
-    background: "#f3f3f3",
-    marginBottom: 20,
-    overflow: "hidden"
-  },
-  img: { width: "100%", height: "100%", objectFit: "cover" },
+  checkoutWrap:{maxWidth:900,margin:"80px auto",background:"#fff",padding:50,border:"1px solid #eee"},
+  checkoutGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:40},
+  inputLight:{width:"100%",padding:12,border:"1px solid #ddd",marginBottom:10},
+  orderSummary:{borderLeft:"1px solid #eee",paddingLeft:20},
+  summaryItem:{display:"flex",justifyContent:"space-between"},
+  total:{marginTop:10,fontWeight:"bold"},
+  placeOrderLight:{marginTop:10,padding:12,width:"100%",background:"black",color:"white",border:"none"},
 
-  btn: { padding: 10, marginTop: 10, cursor: "pointer" },
+  center:{textAlign:"center",marginTop:50},
 
-  cartDrawer: { position: "fixed", right: 0, top: 0, width: 320, height: "100%", background: "white", padding: 20, boxShadow: "-5px 0 15px rgba(0,0,0,0.1)" },
+  adminWhite:{background:"#fff",padding:40},
+  tabsWhite:{display:"flex",gap:10,marginBottom:20},
+  tabWhite:{padding:10,border:"1px solid #ddd"},
+  activeWhite:{padding:10,border:"2px solid black"},
 
-  adminWrapper: { padding: 40 },
-  adminTitle: { marginBottom: 20 },
-  adminTabs: { display: "flex", gap: 10 },
-  tab: { padding: 10, border: "1px solid #ccc" },
-  activeTab: { padding: 10, background: "black", color: "white" },
+  orderCard:{border:"1px solid #eee",padding:20,marginBottom:15},
 
-  adminSection: { marginTop: 20 },
-  adminItem: { display: "flex", justifyContent: "space-between", marginTop: 10 },
+  addBox:{border:"1px solid #eee",padding:20,marginBottom:30},
+  dropZone:{border:"2px dashed #ccc",padding:30,textAlign:"center",marginBottom:10},
+  preview:{width:120,height:120,objectFit:"cover"},
 
-  orderCard: { border: "1px solid #eee", padding: 10, marginTop: 10 },
-
-  input: { display: "block", marginBottom: 10, padding: 10, width: "100%" },
-
-  dropZone: { border: "2px dashed #ccc", padding: 20, marginBottom: 10, textAlign: "center" },
-
-  primaryBtn: { padding: 12, background: "black", color: "white", border: "none" },
-
-  whySection: { padding: 60, textAlign: "center" },
-  whyTitle: { fontSize: 28 },
-  divider: { width: 60, height: 2, background: "black", margin: "20px auto" },
-  whyGrid: { display: "flex", justifyContent: "center", gap: 30 },
-  whyCard: { maxWidth: 200 }
+  productRow:{display:"flex",alignItems:"center",gap:15,borderBottom:"1px solid #eee",padding:10},
+  thumb:{width:60,height:60,objectFit:"cover"}
 };
