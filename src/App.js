@@ -62,7 +62,7 @@ export default function App() {
         zip: details.zip,
         payment: details.payment,
         status: "Pending",
-        createdAt: new Date().toISOString() // 🔥 ensures proper saving + sorting
+        createdAt: Date.now() // 🔥 ensures proper saving + sorting
       });
 
       setCart([]);
@@ -211,13 +211,25 @@ function Admin(){
   useEffect(()=>{
     load();
   },[]);
-
   const load = async ()=>{
     const p = await getDocs(collection(db,"products"));
     setProducts(p.docs.map(d=>({...d.data(),id:d.id})));
 
     const o = await getDocs(collection(db,"orders"));
-    setOrders(o.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt)));
+
+    const list = o.docs.map(d=>{
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt || 0
+      };
+    });
+
+    // 🔥 ALWAYS newest first (bulletproof)
+    list.sort((a,b)=> Number(b.createdAt) - Number(a.createdAt));
+
+    setOrders(list);
   };
 
   const addProduct = async ()=>{
@@ -592,3 +604,4 @@ const styles = {
     cursor:"pointer"
   }
 };
+
