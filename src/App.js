@@ -51,15 +51,28 @@ export default function App() {
       return;
     }
 
-    await addDoc(collection(db, "orders"), {
-      items: cart,
-      ...details,
-      status: "Pending",
-      createdAt: new Date()
-    });
-    setCart([]);
-    alert("Order placed 💎");
-    setPage("home");
+    try {
+      await addDoc(collection(db, "orders"), {
+        items: cart,
+        name: details.name || "",
+        email: details.email || "",
+        address: details.address,
+        city: details.city,
+        state: details.state,
+        zip: details.zip,
+        payment: details.payment,
+        status: "Pending",
+        createdAt: new Date().toISOString() // 🔥 ensures proper saving + sorting
+      });
+
+      setCart([]);
+      alert("Order placed 💎");
+      setPage("home");
+
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("Error placing order");
+    }
   };
 
   return (
