@@ -23,6 +23,8 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [isAdmin, setIsAdmin] = useState(false);
   const [cartAnim, setCartAnim] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [quickView, setQuickView] = useState(null);
 
   useEffect(() => {
     loadProducts();
@@ -39,6 +41,7 @@ export default function App() {
   const addToCart = (p) => {
     setCart(prev => [...prev, p]);
     setCartAnim(true);
+    setDrawerOpen(true);
     setTimeout(() => setCartAnim(false), 600);
   };
 
@@ -84,17 +87,50 @@ export default function App() {
       {page === "home" && (
         <div style={styles.grid}>
           {products.map(p => (
-            <div key={p.id} style={styles.card}>
+            <div
+              key={p.id}
+              style={styles.card}
+              onMouseEnter={e => e.currentTarget.style.transform = "translateY(-8px) scale(1.02)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "translateY(0) scale(1)"}
+            >
               {p.image && <img src={p.image} alt="" style={styles.img} />}
               <h3>{p.name}</h3>
               <p>${p.price}</p>
+
               <button style={styles.btn} onClick={() => addToCart(p)}>Add to Cart</button>
+              <button style={styles.btn} onClick={() => setQuickView(p)}>Quick View</button>
             </div>
           ))}
         </div>
       )}
 
       {page === "cart" && <Cart cart={cart} checkout={checkout} />}
+
+      {/* CART DRAWER */}
+      {drawerOpen && (
+        <div style={styles.drawer}>
+          <div style={styles.drawerHeader}>
+            <b>Cart</b>
+            <span onClick={()=>setDrawerOpen(false)} style={{cursor:"pointer"}}>✕</span>
+          </div>
+          {cart.map((i,idx)=>(
+            <div key={idx} style={styles.drawerItem}>{i.name} - ${i.price}</div>
+          ))}
+          <button style={styles.placeOrderLight} onClick={()=>{setDrawerOpen(false);setPage("cart")}}>Checkout</button>
+        </div>
+      )}
+
+      {/* QUICK VIEW MODAL */}
+      {quickView && (
+        <div style={styles.modalOverlay} onClick={()=>setQuickView(null)}>
+          <div style={styles.modal} onClick={e=>e.stopPropagation()}>
+            {quickView.image && <img src={quickView.image} style={styles.img} />}
+            <h2>{quickView.name}</h2>
+            <p>${quickView.price}</p>
+            <button style={styles.placeOrderLight} onClick={()=>addToCart(quickView)}>Add to Cart</button>
+          </div>
+        </div>
+      )}
       {page === "admin" && (isAdmin ? <Admin /> : <Login />)}
 
     </div>
@@ -106,6 +142,8 @@ function Cart({ cart, checkout }) {
   const [form, setForm] = useState({ name:"", email:"", address:"", city:"", state:"", zip:"", payment:"" });
   const total = cart.reduce((s,i)=>s+i.price,0);
   const paymentOptions = ["PayPal","CashApp","Apple Pay","Crypto"];
+
+  const isValid = form.address && form.city && form.state && form.zip && form.payment;
 
   return (
     <div style={styles.checkoutWrap}>
@@ -136,7 +174,12 @@ function Cart({ cart, checkout }) {
             <div key={idx} style={styles.summaryItem}><span>{i.name}</span><span>${i.price}</span></div>
           ))}
           <div style={styles.total}>${total}</div>
-          <button style={styles.placeOrderLight} onClick={()=>checkout(form)}>Place Order</button>
+          <button
+            style={{...styles.placeOrderLight, opacity: isValid ? 1 : 0.5, cursor: isValid ? "pointer" : "not-allowed"}}
+            onClick={()=> isValid && checkout(form)}
+          >
+            Place Order
+          </button>
         </div>
 
       </div>
@@ -222,46 +265,317 @@ function Admin(){
   );
 }
 
-function Login(){return <div style={{padding:40}}>Login</div>}
+function Login(){
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [show,setShow]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const [shake,setShake]=useState(false);
+
+  const login = async (e)=>{
+    if(e) e.preventDefault();
+    setError("");
+    setLoading(true);
+    try{
+      await signInWithEmailAndPassword(auth,email,password);
+    }catch(e){
+      setError("Invalid email or password");
+      setShake(true);
+      setTimeout(()=>setShake(false),400);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",background:"linear-gradient(180deg,#ffffff,#f3f3f3)"}}>
+      <form
+        onSubmit={login}
+        style={{
+          width:420,
+          padding:60,
+          border:"1px solid #eee",
+          borderRadius:18,
+          background:"rgba(255,255,255,0.7)",
+          backdropFilter:"blur(12px)",
+          boxShadow:"0 40px 120px rgba(0,0,0,0.1)",
+          textAlign:"center",
+          transform: shake ? "translateX(-6px)" : "translateX(0)",
+          transition:"all 0.3s ease"
+        }}
+      >
+
+        <h2 style={{marginBottom:30,fontWeight:200,letterSpacing:4}}>ADMIN ACCESS</h2>
+
+        {/* EMAIL */}
+        <div style={{position:"relative",marginBottom:25}}>
+          <input
+            value={email}
+            onChange={e=>setEmail(e.target.value)}
+            style={{...styles.inputLuxury,border: email?"1px solid black":"1px solid #ddd"}}
+          />
+          <label style={email ? styles.labelActive : styles.label}>Email</label>
+        </div>
+
+        {/* PASSWORD */}
+        <div style={{position:"relative",marginBottom:15}}>
+          <input
+            type={show?"text":"password"}
+            value={password}
+            onChange={e=>setPassword(e.target.value)}
+            style={{...styles.inputLuxury,border: password?"1px solid black":"1px solid #ddd"}}
+          />
+          <label style={password ? styles.labelActive : styles.label}>Password</label>
+          <span onClick={()=>setShow(!show)} style={styles.eye}>{show?"Hide":"Show"}</span>
+        </div>
+
+        {error && <div style={{color:"#d33",fontSize:13,marginBottom:15}}>{error}</div>}
+
+        <button
+          type="submit"
+          style={{
+            ...styles.placeOrderLight,
+            background: loading ? "#333" : "black",
+            transform: loading ? "scale(0.98)" : "scale(1)",
+            transition:"all 0.2s"
+          }}
+        >
+          {loading ? "Authenticating..." : "Enter Admin"}
+        </button>
+
+      </form>
+    </div>
+  );
+}
+
 
 const styles = {
-  page:{background:"#fff",minHeight:"100vh"},
-  nav:{display:"flex",justifyContent:"space-between",padding:20,alignItems:"center"},
-  link:{marginLeft:20,cursor:"pointer"},
+  drawer:{
+    position:"fixed",
+    right:0,
+    top:0,
+    width:320,
+    height:"100%",
+    background:"#fff",
+    boxShadow:"-10px 0 40px rgba(0,0,0,0.1)",
+    padding:20,
+    zIndex:20,
+    animation:"slideIn 0.3s ease"
+  },
+  drawerHeader:{display:"flex",justifyContent:"space-between",marginBottom:20},
+  drawerItem:{marginBottom:10},
+
+  modalOverlay:{
+    position:"fixed",
+    top:0,left:0,right:0,bottom:0,
+    background:"rgba(0,0,0,0.4)",
+    display:"flex",
+    justifyContent:"center",
+    alignItems:"center",
+    zIndex:30
+  },
+
+  modal:{
+    background:"#fff",
+    padding:40,
+    borderRadius:12,
+    width:400,
+    textAlign:"center",
+    boxShadow:"0 20px 60px rgba(0,0,0,0.2)"
+  },
+  page:{
+    background:"linear-gradient(180deg,#ffffff,#f5f5f5)",
+    minHeight:"100vh",
+    fontFamily:"-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial",
+    color:"#111"
+  },
+
+  nav:{
+    display:"flex",
+    justifyContent:"space-between",
+    padding:"30px 60px",
+    alignItems:"center",
+    borderBottom:"1px solid #eee",
+    background:"rgba(255,255,255,0.7)",
+    backdropFilter:"blur(10px)",
+    position:"sticky",
+    top:0,
+    zIndex:10
+  },
+
+  link:{
+    marginLeft:30,
+    cursor:"pointer",
+    letterSpacing:"1px",
+    fontSize:14,
+    transition:"opacity 0.2s"
+  },
 
   cartIcon:{
-    marginLeft:20,
+    marginLeft:25,
     cursor:"pointer",
-    padding:"10px 14px",
+    padding:"10px 16px",
     border:"1px solid #ddd",
-    borderRadius:20,
-    transition:"all 0.3s"
+    borderRadius:25,
+    transition:"all 0.3s",
+    fontSize:14
   },
 
   cartIconActive:{
-    marginLeft:20,
+    marginLeft:25,
     cursor:"pointer",
-    padding:"10px 14px",
+    padding:"10px 16px",
     border:"2px solid black",
-    borderRadius:20,
-    transform:"scale(1.2)",
+    borderRadius:25,
+    transform:"scale(1.15)",
     transition:"all 0.3s"
   },
 
-  grid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:40,padding:40},
-  card:{border:"1px solid #eee",padding:20},
-  img:{width:"100%",aspectRatio:"1 / 1",objectFit:"cover"},
-  btn:{padding:10,width:"100%"},
+  grid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(auto-fill, minmax(220px, 1fr))", // more products per row
+    gap:30,
+    padding:"60px 80px"
+  },
 
-  checkoutWrap:{maxWidth:900,margin:"80px auto",padding:50,border:"1px solid #eee"},
-  checkoutGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:40},
-  inputLight:{width:"100%",padding:12,border:"1px solid #ddd",marginBottom:10},
-  orderSummary:{borderLeft:"1px solid #eee",paddingLeft:20},
-  summaryItem:{display:"flex",justifyContent:"space-between"},
-  total:{marginTop:10,fontWeight:"bold"},
-  placeOrderLight:{marginTop:10,padding:12,width:"100%",background:"black",color:"white"},
+  card:{
+    border:"1px solid #eee",
+    padding:25,
+    background:"#fff",
+    borderRadius:12,
+    transition:"all 0.3s",
+    cursor:"pointer",
+    boxShadow:"0 10px 30px rgba(0,0,0,0.04)"
+  },
 
-  paymentGrid:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10},
-  paymentBox:{padding:12,border:"1px solid #ddd",textAlign:"center",cursor:"pointer"},
-  paymentActive:{padding:12,border:"2px solid black",textAlign:"center"}
+  img:{
+    width:"100%",
+    aspectRatio:"1 / 1",
+    objectFit:"cover",
+    borderRadius:10,
+    marginBottom:15
+  },
+
+  btn:{
+    padding:12,
+    width:"100%",
+    border:"1px solid #ddd",
+    background:"white",
+    marginTop:10,
+    transition:"all 0.2s",
+    cursor:"pointer"
+  },
+
+  checkoutWrap:{
+    maxWidth:1000,
+    margin:"100px auto",
+    padding:60,
+    border:"1px solid #eee",
+    borderRadius:16,
+    background:"#fff",
+    boxShadow:"0 20px 60px rgba(0,0,0,0.06)"
+  },
+
+  checkoutGrid:{
+    display:"grid",
+    gridTemplateColumns:"1fr 1fr",
+    gap:50
+  },
+
+  inputLight:{
+    width:"100%",
+    padding:14,
+    border:"1px solid #ddd",
+    marginBottom:14,
+    borderRadius:8,
+    fontSize:14
+  },
+
+  orderSummary:{
+    borderLeft:"1px solid #eee",
+    paddingLeft:30
+  },
+
+  summaryItem:{
+    display:"flex",
+    justifyContent:"space-between",
+    marginBottom:10
+  },
+
+  total:{
+    marginTop:20,
+    fontWeight:"bold",
+    fontSize:18
+  },
+
+  placeOrderLight:{
+    marginTop:20,
+    padding:14,
+    width:"100%",
+    background:"black",
+    color:"white",
+    border:"none",
+    borderRadius:8,
+    letterSpacing:"1px",
+    cursor:"pointer"
+  },
+
+  paymentGrid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(2,1fr)",
+    gap:12,
+    marginTop:10
+  },
+
+  paymentBox:{
+    padding:14,
+    border:"1px solid #ddd",
+    textAlign:"center",
+    cursor:"pointer",
+    borderRadius:8,
+    transition:"all 0.2s"
+  },
+
+  paymentActive:{
+    padding:14,
+    border:"2px solid black",
+    textAlign:"center",
+    borderRadius:8
+  },
+
+  /* LOGIN SHARED STYLES */
+  inputLuxury:{
+    width:"100%",
+    padding:"14px 10px",
+    border:"1px solid #ddd",
+    outline:"none",
+    background:"transparent"
+  },
+
+  label:{
+    position:"absolute",
+    left:10,
+    top:12,
+    fontSize:13,
+    color:"#777",
+    transition:"0.2s"
+  },
+
+  labelActive:{
+    position:"absolute",
+    left:10,
+    top:-8,
+    fontSize:11,
+    background:"white",
+    padding:"0 4px",
+    color:"black"
+  },
+
+  eye:{
+    position:"absolute",
+    right:10,
+    top:12,
+    fontSize:12,
+    cursor:"pointer"
+  }
 };
